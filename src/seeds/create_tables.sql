@@ -39,3 +39,13 @@ CREATE TABLE empleado (
     apellidos VARCHAR(100),
     activo BOOLEAN DEFAULT TRUE
 );
+-- CITAS
+CREATE TABLE cita (
+    id_cita INT AUTO_INCREMENT PRIMARY KEY,
+    titulo VARCHAR(150),
+    descripcion TEXT,
+    fecha_inicio DATETIME,
+    fecha_fin DATETIME,
+    fk_id_usuario INT,
+    FOREIGN KEY (fk_id_usuario) REFERENCES usuario(id_usuario)
+);
