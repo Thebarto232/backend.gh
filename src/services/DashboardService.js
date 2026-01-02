@@ -1,21 +1,24 @@
 import { pool } from "../utils/db.js";
 
-export const getData = async () => {
-  const [totalEmpleados] = await pool.query(
-    "SELECT COUNT(*) total FROM empleado"
+export const getDashboardStats = async () => {
+  // Conteo total de empleados
+  const [empTotal] = await pool.query("SELECT COUNT(*) as total FROM empleado");
+  
+  // Conteo de empleados activos según tu columna 'estado_empleado'
+  const [empActivos] = await pool.query(
+    "SELECT COUNT(*) as total FROM empleado WHERE estado_empleado = 'ACTIVO'"
   );
 
-  const [empleadosActivos] = await pool.query(
-    "SELECT COUNT(*) total FROM empleado WHERE activo = 1"
-  );
+  // Conteo de usuarios del sistema
+  const [userTotal] = await pool.query("SELECT COUNT(*) as total FROM usuario");
 
-  const [totalUsuarios] = await pool.query(
-    "SELECT COUNT(*) total FROM usuario"
-  );
+  // Conteo de citas programadas
+  const [citaTotal] = await pool.query("SELECT COUNT(*) as total FROM cita");
 
   return {
-    totalEmpleados: totalEmpleados[0].total,
-    empleadosActivos: empleadosActivos[0].total,
-    totalUsuarios: totalUsuarios[0].total,
+    totalEmpleados: empTotal[0].total,
+    empleadosActivos: empActivos[0].total,
+    totalUsuarios: userTotal[0].total,
+    totalCitas: citaTotal[0].total
   };
 };
