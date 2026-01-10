@@ -1,57 +1,33 @@
 import { Router } from "express";
-import { pool } from "../utils/db.js";
+import { 
+    getEmpleados, 
+    getEmpleadoById, 
+    createEmpleado, 
+    updateEmpleado, 
+    deleteEmpleado,
+    getHijosByEmpleado,
+    createHijo,
+    getReporteSeguridadSocial // <--- IMPORTANTE: Importar la nueva función
+} from "../controllers/EmpleadosController.js";
 
-const router = Router(); // <--- 1. Inicialización necesaria
+const router = Router();
 
-// CUMPLEAÑOS: Filtra por el mes actual
-router.get('/reportes/cumpleanos', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT id_cedula, apellidos_nombre, fecha_nacimiento, 
-                   DAY(fecha_nacimiento) as dia, ae.nombre_area
-            FROM empleado e
-            LEFT JOIN area_empresa ae ON e.fk_id_area = ae.id_area
-            WHERE MONTH(fecha_nacimiento) = MONTH(CURRENT_DATE())
-            AND e.estado_empleado = 'ACTIVO'
-            ORDER BY dia ASC
-        `);
-        res.json(rows);
-    } catch (error) {
-        res.status(500).json({ error: "Error en la consulta de cumpleaños: " + error.message });
-    }
-});
+// ======================================================
+// Base URL: /api/empleados
+// ======================================================
 
-// ANIVERSARIOS: Calcula años en la empresa
-router.get('/reportes/aniversarios', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT id_cedula, apellidos_nombre, fecha_ingreso,
-                   TIMESTAMPDIFF(YEAR, fecha_ingreso, CURRENT_DATE()) as anos
-            FROM empleado 
-            WHERE MONTH(fecha_ingreso) = MONTH(CURRENT_DATE())
-            AND estado_empleado = 'ACTIVO'
-            ORDER BY DAY(fecha_ingreso) ASC
-        `);
-        res.json(rows);
-    } catch (error) {
-        res.status(500).json({ error: "Error en la consulta de aniversarios: " + error.message });
-    }
-});
+// 1. Reportes (Deben ir ANTES de las rutas con :id para evitar conflictos)
+router.get('/reportes/seguridad-social', getReporteSeguridadSocial); // -> GET /api/empleados/reportes/seguridad-social
 
-// SEGURIDAD SOCIAL: Cruza con tablas de EPS y Pensiones
-router.get('/reportes/seguridad-social', async (req, res) => {
-    try {
-        const [rows] = await pool.query(`
-            SELECT e.id_cedula, e.apellidos_nombre, eps.nombre_eps, fp.nombre_pension
-            FROM empleado e
-            LEFT JOIN eps ON e.fk_id_eps = eps.id_eps
-            LEFT JOIN fondo_pensiones fp ON e.fk_id_pension = fp.id_pension
-            WHERE e.estado_empleado = 'ACTIVO'
-        `);
-        res.json(rows);
-    } catch (error) {
-        res.status(500).json({ error: "Error en seguridad social: " + error.message });
-    }
-});
+// 2. Gestión de Hijos
+router.get('/hijos/:cedula', getHijosByEmpleado);
+router.post('/hijos', createHijo);
 
-export default router; // <--- 2. Exportar la instancia 'router', no la clase 'Router'
+// 3. CRUD Empleados
+router.get('/', getEmpleados);          
+router.get('/:id', getEmpleadoById);    
+router.post('/', createEmpleado);       
+router.put('/:id', updateEmpleado);     
+router.delete('/:id', deleteEmpleado);  
+
+export default router;
