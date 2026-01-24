@@ -3,63 +3,63 @@ import jwt from "jsonwebtoken";
 import { pool } from "../utils/db.js";
 import { config } from "dotenv";
 
-config(); // Cargar variables de entorno para el JWT_SECRET
+config();
 
-// 1. BUSCAR USUARIO (Ahora por EMAIL, no username)
-export const findUserByUsername = async (email) => {
+// 1. BUSCAR USUARIO (Por username, que es lo que tiene tu BD)
+export const findUserByUsername = async (username) => {
     const [rows] = await pool.query(
-        "SELECT * FROM usuario WHERE email = ?",
-        [email]
+        "SELECT * FROM usuario WHERE username = ?",
+        [username]
     );
     return rows[0];
 };
 
-// 2. CREAR USUARIO (Registro alineado a la nueva BD)
+// 2. CREAR USUARIO (Adaptado a tu tabla 'usuario')
 export const createUser = async (userData) => {
-    // Recibimos id_usuario porque tu BD no es auto-incrementable
-    const { id_usuario, email, password, fk_id_rol, nombre_completo } = userData;
+    // Nota: Tu BD es AUTO_INCREMENT, no enviamos id_usuario.
+    // Nota: Tu tabla 'usuario' NO tiene nombre_completo, solo username y password.
+    const { username, password, fk_id_rol } = userData;
 
     try {
-        // Encriptamos la contraseña aquí en el servicio
         const salt = await bcrypt.genSalt(10);
         const hashedPassword = await bcrypt.hash(password, salt);
 
-        // SQL corregido:
-        // - username -> email
-        // - estado 1 -> estado 'True' (ENUM)
-        // - Agregamos id_usuario y nombre_completo
+        // Insertamos estado como 1 (TINYINT) que es el default en tu BD
         const [result] = await pool.query(
-            `INSERT INTO usuario (id_usuario, email, password, fk_id_rol, nombre_completo, estado) 
-             VALUES (?, ?, ?, ?, ?, 'True')`,
-            [id_usuario, email, hashedPassword, fk_id_rol, nombre_completo]
+            `INSERT INTO usuario (username, password, fk_id_rol, estado) 
+             VALUES (?, ?, ?, 1)`,
+            [username, hashedPassword, fk_id_rol]
         );
         return result;
     } catch (error) {
         if (error.code === 'ER_NO_REFERENCED_ROW_2') {
-            throw new Error("El Rol seleccionado no es válido en el sistema.");
+            throw new Error("El Rol seleccionado no es válido.");
+        }
+        if (error.code === 'ER_DUP_ENTRY') {
+            throw new Error("El nombre de usuario ya existe.");
         }
         throw error;
     }
 };
 
-// 3. LOGIN (Corregido: email, nombre_rol y estado)
-export const login = async (email, password) => {
-    // JOIN corregido: 'r.nombre' ahora es 'r.nombre_rol' en tu BD
+// 3. LOGIN (Adaptado a columnas 'username', 'estado' TINYINT y rol 'nombre')
+export const login = async (username, password) => {
+    // JOIN corregido: r.nombre (según tu SQL) en lugar de r.nombre_rol
     const [rows] = await pool.query(
-        `SELECT u.id_usuario, u.email, u.nombre_completo, u.password, u.estado, r.nombre_rol AS rol
+        `SELECT u.id_usuario, u.username, u.password, u.estado, r.nombre AS rol
          FROM usuario u
          JOIN rol r ON u.fk_id_rol = r.id_rol
-         WHERE u.email = ?`,
-        [email]
+         WHERE u.username = ?`,
+        [username]
     );
 
     if (rows.length === 0) throw new Error("Usuario no encontrado");
 
     const user = rows[0];
 
-    // Validación de estado (ENUM 'True'/'False')
-    if (user.estado === 'False' || user.estado === 'INACTIVO') {
-        throw new Error("El usuario está inactivo. Contacte al administrador.");
+    // Validación de estado (TINYINT: 1 es Activo, 0 es Inactivo)
+    if (user.estado === 0) {
+        throw new Error("El usuario está inactivo.");
     }
 
     // Verificar contraseña
@@ -77,8 +77,7 @@ export const login = async (email, password) => {
         token, 
         user: { 
             id: user.id_usuario, 
-            email: user.email, 
-            nombre: user.nombre_completo, 
+            username: user.username, 
             rol: user.rol 
         } 
     };

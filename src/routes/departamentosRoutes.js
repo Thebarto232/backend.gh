@@ -3,17 +3,18 @@ import {
     getDepartamentos, 
     createDepartamento, 
     getAreasByDepto, 
-    createArea ,
+    createArea,
     deleteDepartamento
 } from "../controllers/DepartamentosController.js";
 
 const router = Router();
 
-// Rutas base: /api/departamentos
+// Base URL: /api/departamentos
 router.get('/', getDepartamentos);
 router.post('/', createDepartamento);
 router.delete('/:id', deleteDepartamento);
 
+// Sub-rutas para Áreas
 router.get('/:idDepto/areas', getAreasByDepto);
 router.post('/areas', createArea);
 
